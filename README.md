@@ -5,10 +5,10 @@ Framework-free analytics for simple hosting setups.
 ## Features
 
 - Tiny tracker (`tracker.js`) with `navigator.sendBeacon()` first
-- Tracks pageviews, tagged clicks, and custom events
+- Tracks pageviews, tagged clicks, affiliate clicks, redirects, and custom events
 - PHP ingest endpoint (`collect.php`) with PDO prepared statements
 - SQLite storage with indexed reporting queries
-- Password-protected admin dashboard
+- Password-protected admin dashboard with inline charts
 - One-time browser setup via `setup.php`
 - Basic bot estimation (`human`, `bot`, `unknown`)
 - Origin/site allowlist guard on ingest
@@ -23,6 +23,7 @@ Framework-free analytics for simple hosting setups.
 
 - `setup.php` one-time installer
 - `collect.php` event ingest endpoint
+- `redirect.php` tracked redirect endpoint
 - `tracker.js` analytics tracker
 - `schema.sql` SQLite schema + indexes
 - `config.example.php` config template
@@ -80,6 +81,48 @@ Only elements with `data-analytics-click` are tracked as click events:
 <button data-analytics-click="signup_button" data-analytics-value="hero">Sign up</button>
 ```
 
+### Affiliate Link Tracking
+
+Use `data-analytics-affiliate` on direct affiliate links:
+
+```html
+<a
+  href="https://partner.example.com/deal"
+  data-analytics-affiliate="hosting_partner"
+  data-analytics-value="https://partner.example.com/deal"
+>
+  Try the partner offer
+</a>
+```
+
+You can also record an affiliate click manually:
+
+```html
+<script>
+  window.TinyAnalytics.trackAffiliate('hosting_partner', 'https://partner.example.com/deal');
+</script>
+```
+
+### Redirect Tracking
+
+Route links through `redirect.php` when you want the server to count the redirect before sending the visitor onward:
+
+```html
+<a
+  href="https://data.example.com/redirect.php?to=https%3A%2F%2Fpartner.example.com%2Fdeal&name=hosting_partner&site=example.com"
+>
+  Visit partner
+</a>
+```
+
+Or build the redirect URL in JavaScript:
+
+```html
+<script>
+  var href = window.TinyAnalytics.redirectUrl('https://partner.example.com/deal', 'hosting_partner');
+</script>
+```
+
 ### Custom Events
 
 ```html
@@ -93,7 +136,7 @@ Only elements with `data-analytics-click` are tracked as click events:
 `POST /collect.php` JSON body:
 
 - Required:
-  - `event_type`: `pageview | click | custom`
+  - `event_type`: `pageview | click | custom | affiliate_click | redirect`
   - `page_url`
 - Optional:
   - `referrer`
@@ -124,12 +167,14 @@ Simple heuristic:
 The admin dashboard shows:
 
 - Events today
-- Events last 7 days
-- Human vs bot vs unknown (7 days)
-- Event counts by type (7 days)
-- Top pages (7 days)
-- Top referrers (7 days)
-- Daily counts (7 days)
+- Events over 7-day or 30-day windows
+- Inline traffic chart for pageviews
+- Human vs bot vs unknown
+- Event counts by type
+- Top pages
+- Top referrers
+- Top affiliate links
+- Top redirect targets
 
 ## Security Notes
 

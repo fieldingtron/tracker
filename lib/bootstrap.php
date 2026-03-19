@@ -85,7 +85,24 @@ function db(): PDO
         PDO::ATTR_EMULATE_PREPARES => false,
     ]);
 
+    ensure_schema($pdo);
+
     return $pdo;
+}
+
+function allowed_event_types(): array
+{
+    return ['pageview', 'click', 'custom', 'affiliate_click', 'redirect'];
+}
+
+function event_type_sql_list(): string
+{
+    $quoted = array_map(
+        static fn(string $value): string => "'" . str_replace("'", "''", $value) . "'",
+        allowed_event_types()
+    );
+
+    return implode(', ', $quoted);
 }
 
 function ensure_schema(PDO $pdo): void
@@ -95,7 +112,55 @@ function ensure_schema(PDO $pdo): void
         throw new RuntimeException('Could not read schema.sql');
     }
 
+    $eventsTableSql = $pdo->query("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'events'")->fetchColumn();
+    if (is_string($eventsTableSql) && schema_needs_events_migration($eventsTableSql)) {
+        migrate_events_table($pdo, $schema);
+        return;
+    }
+
     $pdo->exec($schema);
+}
+
+function schema_needs_events_migration(string $eventsTableSql): bool
+{
+    return strpos($eventsTableSql, 'affiliate_click') === false
+        || strpos($eventsTableSql, "'redirect'") === false
+        || strpos($eventsTableSql, 'ip_hash') !== false;
+}
+
+function migrate_events_table(PDO $pdo, string $schema): void
+{
+    $pdo->beginTransaction();
+
+    try {
+        $pdo->exec('DROP TABLE IF EXISTS events_legacy');
+        $pdo->exec('ALTER TABLE events RENAME TO events_legacy');
+        $pdo->exec($schema);
+        $pdo->exec(
+            "INSERT INTO events (id, event_type, event_name, event_value, page_url, referrer, site, user_agent, bot_class, created_at, client_ts)
+             SELECT
+                id,
+                CASE
+                    WHEN event_type IN (" . event_type_sql_list() . ") THEN event_type
+                    ELSE 'custom'
+                END,
+                event_name,
+                event_value,
+                page_url,
+                referrer,
+                site,
+                user_agent,
+                bot_class,
+                created_at,
+                client_ts
+             FROM events_legacy"
+        );
+        $pdo->exec('DROP TABLE events_legacy');
+        $pdo->commit();
+    } catch (Throwable $e) {
+        $pdo->rollBack();
+        throw $e;
+    }
 }
 
 function normalize_site_host(string $input): string

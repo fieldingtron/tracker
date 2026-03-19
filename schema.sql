@@ -2,7 +2,7 @@ PRAGMA journal_mode = WAL;
 
 CREATE TABLE IF NOT EXISTS events (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    event_type TEXT NOT NULL CHECK (event_type IN ('pageview', 'click', 'custom')),
+    event_type TEXT NOT NULL CHECK (event_type IN ('pageview', 'click', 'custom', 'affiliate_click', 'redirect')),
     event_name TEXT,
     event_value TEXT,
     page_url TEXT NOT NULL,

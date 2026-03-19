@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/lib/bootstrap.php';
 require_once __DIR__ . '/lib/bot.php';
+require_once __DIR__ . '/lib/events.php';
 
 header('Content-Type: application/json');
 
@@ -66,7 +67,7 @@ if (!is_array($payload)) {
 }
 
 $eventType = (string)($payload['event_type'] ?? '');
-if (!in_array($eventType, ['pageview', 'click', 'custom'], true)) {
+if (!in_array($eventType, allowed_event_types(), true)) {
     collect_bad_request('Invalid event_type');
 }
 
@@ -102,22 +103,17 @@ $createdAt = time();
 $botClass = estimate_bot_class($userAgent, $_SERVER);
 
 try {
-    $stmt = db()->prepare(
-        'INSERT INTO events (event_type, event_name, event_value, page_url, referrer, site, user_agent, bot_class, created_at, client_ts)
-         VALUES (:event_type, :event_name, :event_value, :page_url, :referrer, :site, :user_agent, :bot_class, :created_at, :client_ts)'
-    );
-
-    $stmt->execute([
-        ':event_type' => $eventType,
-        ':event_name' => $eventName,
-        ':event_value' => $eventValue,
-        ':page_url' => $pageUrl,
-        ':referrer' => $referrer,
-        ':site' => $siteHost,
-        ':user_agent' => $userAgent,
-        ':bot_class' => $botClass,
-        ':created_at' => $createdAt,
-        ':client_ts' => $clientTs,
+    insert_event(db(), [
+        'event_type' => $eventType,
+        'event_name' => $eventName,
+        'event_value' => $eventValue,
+        'page_url' => $pageUrl,
+        'referrer' => $referrer,
+        'site' => $siteHost,
+        'user_agent' => $userAgent,
+        'bot_class' => $botClass,
+        'created_at' => $createdAt,
+        'client_ts' => $clientTs,
     ]);
 } catch (Throwable $e) {
     http_response_code(500);
