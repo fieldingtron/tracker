@@ -92,7 +92,7 @@ function db(): PDO
 
 function allowed_event_types(): array
 {
-    return ['pageview', 'click', 'custom', 'affiliate_click', 'redirect'];
+    return ['pageview', 'click', 'custom'];
 }
 
 function event_type_sql_list(): string
@@ -123,8 +123,7 @@ function ensure_schema(PDO $pdo): void
 
 function schema_needs_events_migration(string $eventsTableSql): bool
 {
-    return strpos($eventsTableSql, 'affiliate_click') === false
-        || strpos($eventsTableSql, "'redirect'") === false
+    return strpos($eventsTableSql, 'affiliate_click') !== false
         || strpos($eventsTableSql, 'ip_hash') !== false;
 }
 
@@ -137,10 +136,11 @@ function migrate_events_table(PDO $pdo, string $schema): void
         $pdo->exec('ALTER TABLE events RENAME TO events_legacy');
         $pdo->exec($schema);
         $pdo->exec(
-            "INSERT INTO events (id, event_type, event_name, event_value, page_url, referrer, site, user_agent, bot_class, created_at, client_ts)
+            "INSERT INTO events (id, event_type, event_name, event_value, page_url, referrer, site, user_agent, bot_class, created_at, client_ts, exported_at)
              SELECT
                 id,
                 CASE
+                    WHEN event_type IN ('affiliate_click', 'redirect') THEN 'click'
                     WHEN event_type IN (" . event_type_sql_list() . ") THEN event_type
                     ELSE 'custom'
                 END,
@@ -152,7 +152,8 @@ function migrate_events_table(PDO $pdo, string $schema): void
                 user_agent,
                 bot_class,
                 created_at,
-                client_ts
+                client_ts,
+                exported_at
              FROM events_legacy"
         );
         $pdo->exec('DROP TABLE events_legacy');

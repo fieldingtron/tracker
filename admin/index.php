@@ -276,6 +276,16 @@ foreach ($daily as $row) {
             --accent-3: #3459d1;
             --shadow: 0 18px 50px rgba(61, 43, 24, 0.08);
         }
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg: #111318;
+                --panel: #1c1f2b;
+                --text: #e2e8f0;
+                --muted: #8896ab;
+                --line: #2d3748;
+                --accent: #4d8cff;
+            }
+        }
         * { box-sizing: border-box; }
         body {
             margin: 0;

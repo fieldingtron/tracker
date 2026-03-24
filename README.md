@@ -48,6 +48,39 @@ Framework-free analytics for simple hosting setups.
 4. Submit setup form.
 5. Open `https://data.example.com/admin/login.php`.
 
+## Deploy To DreamHost With rsync
+
+This repo includes a small `rsync` deploy script for DreamHost shell hosting.
+
+1. In DreamHost, enable shell access for the user that owns your site.
+2. Pick the target directory for this app, for example `/home/your-shell-user/example.com/analytics`.
+3. Copy `deploy.env.example` to `deploy.env`.
+4. Fill in:
+   - `DREAMHOST_SSH_HOST`: usually your domain or DreamHost SSH hostname
+   - `DREAMHOST_SSH_USER`: your DreamHost shell username
+   - `DREAMHOST_REMOTE_PATH`: full remote path for this app
+   - `DREAMHOST_SSH_PORT`: leave at `22` unless DreamHost gave you a different port
+5. Run:
+
+```bash
+cp deploy.env.example deploy.env
+$EDITOR deploy.env
+bash scripts/deploy-dreamhost.sh
+```
+
+What gets skipped during deploy:
+
+- `config.php`
+- `data/*.sqlite*`
+- `data/install.lock`
+- `.git/` and local deploy files
+
+That means your DreamHost setup data and SQLite database stay in place on later deploys.
+
+For the first deploy, open `https://your-domain/setup.php` on DreamHost and complete the installer. After that, re-run `bash scripts/deploy-dreamhost.sh` whenever you want to push code changes.
+
+If you want deploys to remove old tracked files from the server, set `RSYNC_DELETE=1` in `deploy.env` after you are confident the remote path only contains this app.
+
 ## DNS / Subdomain Setup
 
 Use a dedicated analytics subdomain (for example `data.example.com`).

@@ -14,4 +14,10 @@ return [
     // Admin login credentials (password hash only).
     'admin_username' => 'admin',
     'admin_password_hash' => '$2y$10$replace.with.password_hash.output',
+
+    // Umami event export (used by scripts/umami-export.php).
+    // Leave umami_api_key empty string if your Umami instance has no auth requirement.
+    'umami_url'        => 'https://umami.example.com',
+    'umami_website_id' => 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx',
+    'umami_api_key'    => '',
 ];

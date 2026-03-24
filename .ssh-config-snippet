@@ -1,0 +1,5 @@
+Host stats
+    HostName iad1-shared-b7-47.dreamhost.com
+    User dh_u4hasz
+    Port 22
+    IdentityFile ~/.ssh/id_ed25519
