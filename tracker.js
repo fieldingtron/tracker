@@ -2,6 +2,10 @@
   var endpoint = window.TINY_ANALYTICS_ENDPOINT || '/collect.php';
   var site = window.TINY_ANALYTICS_SITE || window.location.hostname;
 
+  // Affiliate links whose pathname starts with this prefix are auto-tracked.
+  // Override with: window.TINY_ANALYTICS_AFFILIATE_PATH = '/go/';
+  var affiliatePath = window.TINY_ANALYTICS_AFFILIATE_PATH || '/go/';
+
   function sendEvent(payload) {
     payload = payload || {};
     payload.site = payload.site || site;
@@ -28,60 +32,47 @@
     }
   }
 
-  function trackLabeledClick(target, eventType, labelAttr) {
-    var label = target.getAttribute(labelAttr) || target.textContent || eventType;
-    var value =
-      target.getAttribute('data-analytics-value') ||
-      target.getAttribute('href') ||
-      target.value ||
-      '';
-
-    sendEvent({
-      event_type: eventType,
-      event_name: String(label).trim().slice(0, 255),
-      event_value: String(value).slice(0, 2000)
-    });
-  }
-
   // Track page load.
   sendEvent({ event_type: 'pageview' });
 
-  // Track clicks on explicitly tagged elements.
+  // Track all clicks via delegation.
   document.addEventListener(
     'click',
     function (event) {
-      var target = event.target.closest('[data-analytics-affiliate], [data-analytics-click]');
-      if (!target) {
-        return;
+      // Auto-track /go/* affiliate links — no HTML tagging required.
+      var anchor = event.target.closest('a[href]');
+      if (anchor) {
+        try {
+          var resolved = new URL(anchor.getAttribute('href'), window.location.href);
+          if (resolved.pathname.indexOf(affiliatePath) === 0) {
+            var slug = resolved.pathname.slice(affiliatePath.length).replace(/\/+$/, '') || 'affiliate';
+            sendEvent({
+              event_type: 'click',
+              event_name: slug.slice(0, 255),
+              event_value: anchor.getAttribute('href').slice(0, 2000)
+            });
+            return;
+          }
+        } catch (e) {}
       }
 
-      if (target.hasAttribute('data-analytics-affiliate')) {
-        trackLabeledClick(target, 'affiliate_click', 'data-analytics-affiliate');
-        return;
+      // Track explicitly tagged elements.
+      var tagged = event.target.closest('[data-analytics-click]');
+      if (tagged) {
+        var label = tagged.getAttribute('data-analytics-click') || tagged.textContent || 'click';
+        var value = tagged.getAttribute('data-analytics-value') || tagged.getAttribute('href') || tagged.value || '';
+        sendEvent({
+          event_type: 'click',
+          event_name: String(label).trim().slice(0, 255),
+          event_value: String(value).slice(0, 2000)
+        });
       }
-
-      trackLabeledClick(target, 'click', 'data-analytics-click');
     },
     true
   );
 
   // Optional API for custom events.
   window.TinyAnalytics = {
-    redirectUrl: function (targetUrl, name) {
-      var endpointUrl = new URL(endpoint, window.location.href);
-      var redirect = new URL((window.TINY_ANALYTICS_REDIRECT || '/redirect.php'), endpointUrl);
-      redirect.searchParams.set('to', String(targetUrl || ''));
-      redirect.searchParams.set('name', String(name || 'redirect').slice(0, 255));
-      redirect.searchParams.set('site', site);
-      return redirect.toString();
-    },
-    trackAffiliate: function (name, url) {
-      sendEvent({
-        event_type: 'affiliate_click',
-        event_name: String(name || 'affiliate').slice(0, 255),
-        event_value: String(url || '').slice(0, 2000)
-      });
-    },
     track: function (name, value) {
       sendEvent({
         event_type: 'custom',
