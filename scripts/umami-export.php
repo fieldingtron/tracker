@@ -10,8 +10,9 @@ declare(strict_types=1);
  * Marks rows as exported only after a successful API response.
  *
  * Usage:
- *   php scripts/umami-export.php              # normal run
- *   php scripts/umami-export.php --dry-run    # print payloads, do not POST or mark exported
+ *   php scripts/umami-export.php               # normal run
+ *   php scripts/umami-export.php --dry-run     # print payloads, do not POST or mark exported
+ *   php scripts/umami-export.php --limit 100   # process at most 100 rows this run
  *
  * Cron (hourly — change schedule only to adjust frequency):
  *   0 * * * * /usr/local/bin/php /path/to/scripts/umami-export.php >> /path/to/data/umami-export.log 2>&1
@@ -31,6 +32,12 @@ const MAX_PER_RUN    = 500;  // total rows processed per cron invocation
 const CURL_TIMEOUT_S = 5;    // seconds per individual POST
 
 $isDryRun = in_array('--dry-run', $argv ?? [], true);
+
+$limitArg = MAX_PER_RUN;
+$limitIdx = array_search('--limit', $argv ?? []);
+if ($limitIdx !== false && isset($argv[$limitIdx + 1]) && ctype_digit((string)$argv[$limitIdx + 1])) {
+    $limitArg = (int)$argv[$limitIdx + 1];
+}
 
 require_once __DIR__ . '/../lib/bootstrap.php';
 
@@ -66,7 +73,7 @@ $stmt = $pdo->prepare(
      ORDER BY id ASC
      LIMIT :limit'
 );
-$stmt->bindValue(':limit', MAX_PER_RUN, PDO::PARAM_INT);
+$stmt->bindValue(':limit', $limitArg, PDO::PARAM_INT);
 $stmt->execute();
 $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
